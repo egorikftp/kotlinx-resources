@@ -31,9 +31,11 @@ class ResourcesPlugin : KotlinCompilerPluginSupportPlugin {
 
     override fun isApplicable(kotlinCompilation: KotlinCompilation<*>) =
         isCompiledForTesting(kotlinCompilation) && (
-            isAppleCompilation(kotlinCompilation) || isJsNodeCompilation(kotlinCompilation) ||
-                isJsBrowserCompilation(kotlinCompilation)
-            )
+            isAppleCompilation(kotlinCompilation) ||
+            isLinuxCompilation(kotlinCompilation) ||
+            isJsNodeCompilation(kotlinCompilation) ||
+            isJsBrowserCompilation(kotlinCompilation)
+        )
 
     override fun applyToCompilation(
         kotlinCompilation: KotlinCompilation<*>
@@ -41,10 +43,10 @@ class ResourcesPlugin : KotlinCompilerPluginSupportPlugin {
         val project = kotlinCompilation.target.project
 
         /*
-         * For Apple platforms, move resources into the binary's output directory so that they
-         * can be loaded using `NSBundle.mainBundle` and related APIs.
+         * For Apple and Linux platforms, move resources into the binary's output directory so that they
+         * can be loaded using platform-specific APIs.
          */
-        if (isAppleCompilation(kotlinCompilation)) {
+        if (isAppleCompilation(kotlinCompilation) || isLinuxCompilation(kotlinCompilation)) {
             val target = kotlinCompilation.target
             target.binaries.forEach { binary ->
                 setupCopyResourcesTask(
@@ -107,6 +109,14 @@ class ResourcesPlugin : KotlinCompilerPluginSupportPlugin {
         }
         return kotlinCompilation is KotlinNativeCompilation &&
             kotlinCompilation.konanTarget.family.isAppleFamily
+    }
+
+    private fun isLinuxCompilation(kotlinCompilation: KotlinCompilation<*>): Boolean {
+        contract {
+            returns(true) implies (kotlinCompilation is KotlinNativeCompilation)
+        }
+        return kotlinCompilation is KotlinNativeCompilation &&
+            kotlinCompilation.konanTarget.family.name == "LINUX"
     }
 
     private fun isJsNodeCompilation(kotlinCompilation: KotlinCompilation<*>): Boolean {
